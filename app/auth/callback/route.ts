@@ -13,12 +13,33 @@ export async function GET(request: Request) {
   if (code) {
     const supabase = await createClient();
     await supabase.auth.exchangeCodeForSession(code);
+    
+    // After code exchange, get user to determine the proper redirect
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    if (user) {
+      // Check if user has completed onboarding
+      const { data: profile, error } = await supabase
+        .from("users")
+        .select("id")
+        .eq("id", user.id)
+        .single();
+      
+      if (profile) {
+        // User has completed onboarding, redirect to dashboard
+        const role = user.user_metadata?.role || "student";
+        return NextResponse.redirect(`${origin}/dashboard/${role}`);
+      } else {
+        // User needs to complete onboarding
+        return NextResponse.redirect(`${origin}/protected/onboarding`);
+      }
+    }
   }
 
   if (redirectTo) {
     return NextResponse.redirect(`${origin}${redirectTo}`);
   }
 
-  // URL to redirect to after sign up process completes
-  return NextResponse.redirect(`${origin}/protected`);
+  // Default fallback - redirect to onboarding
+  return NextResponse.redirect(`${origin}/protected/onboarding`);
 }

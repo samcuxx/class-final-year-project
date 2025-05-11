@@ -5,9 +5,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { LogIn } from "lucide-react";
 import Link from "next/link";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { AlertCircle } from "lucide-react";
 
-export default async function LoginPage(props: { searchParams: Promise<Message> }) {
+export default async function LoginPage(props: { searchParams: Promise<{ error?: string, success?: string }> }) {
   const searchParams = await props.searchParams;
+  const message: Message = searchParams.error 
+    ? { error: searchParams.error } 
+    : searchParams.success 
+    ? { success: searchParams.success } 
+    : { message: "" };
   
   return (
     <div className="w-full max-w-md mx-auto py-10">
@@ -20,6 +27,15 @@ export default async function LoginPage(props: { searchParams: Promise<Message> 
           Sign in to your ClassApp account
         </p>
       </div>
+      
+      {searchParams.error && (
+        <Alert variant="destructive" className="mb-6">
+          <AlertCircle className="h-4 w-4 mr-2" />
+          <AlertDescription>
+            {searchParams.error}
+          </AlertDescription>
+        </Alert>
+      )}
       
       <form className="bg-card border border-border rounded-lg p-8 shadow-sm">
         <div className="space-y-4">
@@ -55,7 +71,7 @@ export default async function LoginPage(props: { searchParams: Promise<Message> 
             Sign in
           </SubmitButton>
           
-          <FormMessage message={searchParams} />
+          <FormMessage message={message} />
           
           <p className="text-sm text-center text-muted-foreground mt-4">
             Don't have an account?{" "}

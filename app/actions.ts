@@ -15,7 +15,6 @@ export const signUpAction = async (formData: FormData) => {
   const studentId = formData.get("studentId")?.toString();
   
   const supabase = await createClient();
-  const origin = (await headers()).get("origin");
   
   // Get redirect path based on role
   const redirectPath = role === "lecturer" ? "/sign-up/lecturer" : "/sign-up/student";
@@ -44,30 +43,40 @@ export const signUpAction = async (formData: FormData) => {
     );
   }
 
-  const { error } = await supabase.auth.signUp({
+  // Sign up the user with auto-confirm enabled 
+  const { error: signUpError } = await supabase.auth.signUp({
     email,
     password,
     options: {
-      emailRedirectTo: `${origin}/auth/callback`,
       data: {
         full_name: `${firstName} ${lastName}`,
         role: role,
         institution: institution || null,
         student_id: studentId || null,
       },
+      // Email confirmations are disabled in Supabase's auth settings,
+      // so no need to specify emailRedirectTo 
     },
   });
 
-  if (error) {
-    console.error(error.code + " " + error.message);
-    return encodedRedirect("error", redirectPath, error.message);
-  } else {
-    return encodedRedirect(
-      "success",
-      redirectPath,
-      "Thanks for signing up! Please check your email for a verification link.",
-    );
+  if (signUpError) {
+    console.error(signUpError.code + " " + signUpError.message);
+    return encodedRedirect("error", redirectPath, signUpError.message);
   }
+
+  // Sign in the user immediately 
+  const { error: signInError } = await supabase.auth.signInWithPassword({
+    email,
+    password
+  });
+
+  if (signInError) {
+    console.error(signInError.code + " " + signInError.message);
+    return encodedRedirect("error", redirectPath, "Sign up successful, but please sign in manually.");
+  }
+
+  // Redirect to onboarding
+  return redirect("/protected/onboarding");
 };
 
 export const signInAction = async (formData: FormData) => {
@@ -84,7 +93,7 @@ export const signInAction = async (formData: FormData) => {
     return encodedRedirect("error", "/sign-in", error.message);
   }
 
-  return redirect("/protected");
+  return redirect("/dashboard");
 };
 
 export const forgotPasswordAction = async (formData: FormData) => {
@@ -162,4 +171,117 @@ export const signOutAction = async () => {
   const supabase = await createClient();
   await supabase.auth.signOut();
   return redirect("/sign-in");
+};
+
+export const createOrUpdateUserProfile = async (formData: FormData) => {
+  const supabase = await createClient();
+  
+  // Get the current authenticated user
+  const { data: { user }, error: userError } = await supabase.auth.getUser();
+  
+  if (userError || !user) {
+    return encodedRedirect(
+      "error",
+      "/protected/onboarding",
+      "Authentication error. Please sign in again."
+    );
+  }
+  
+  // Extract form data based on role
+  const role = user.user_metadata?.role;
+  const fullName = formData.get("fullName")?.toString() || user.user_metadata?.full_name;
+  const school = formData.get("school")?.toString();
+  let indexNumber = null;
+  let staffId = null;
+  let department = null;
+  let level = null;
+  
+  if (!fullName || !school) {
+    return encodedRedirect(
+      "error",
+      "/protected/onboarding",
+      "Full name and school are required"
+    );
+  }
+  
+  // Role-specific fields
+  if (role === "student") {
+    indexNumber = formData.get("indexNumber")?.toString();
+    level = formData.get("level")?.toString();
+    
+    if (!indexNumber || !level) {
+      return encodedRedirect(
+        "error",
+        "/protected/onboarding",
+        "Index number and current level are required"
+      );
+    }
+  } else if (role === "lecturer") {
+    staffId = formData.get("staffId")?.toString();
+    department = formData.get("department")?.toString();
+    
+    if (!staffId || !department) {
+      return encodedRedirect(
+        "error",
+        "/protected/onboarding",
+        "Staff ID and department are required"
+      );
+    }
+  }
+  
+  // Check if profile exists
+  const { data: existingProfile } = await supabase
+    .from("users")
+    .select("*")
+    .eq("id", user.id)
+    .single();
+  
+  let result;
+  
+  if (existingProfile) {
+    // Update existing profile
+    result = await supabase
+      .from("users")
+      .update({
+        full_name: fullName,
+        school,
+        index_number: indexNumber,
+        staff_id: staffId,
+        department,
+        level,
+        updated_at: new Date().toISOString()
+      })
+      .eq("id", user.id);
+  } else {
+    // Create new profile
+    result = await supabase
+      .from("users")
+      .insert({
+        id: user.id,
+        email: user.email,
+        full_name: fullName,
+        role,
+        school,
+        index_number: indexNumber,
+        staff_id: staffId,
+        department,
+        level
+      });
+  }
+  
+  if (result.error) {
+    console.error("Profile update error:", result.error);
+    return encodedRedirect(
+      "error",
+      "/protected/onboarding",
+      result.error.message
+    );
+  }
+  
+  // Redirect to appropriate dashboard based on role
+  const dashboardPath = role === "lecturer" 
+    ? "/dashboard/lecturer" 
+    : "/dashboard/student";
+  
+  return redirect(dashboardPath);
 };

@@ -37,22 +37,92 @@ export const updateSession = async (request: NextRequest) => {
 
     // This will refresh session if expired - required for Server Components
     // https://supabase.com/docs/guides/auth/server-side/nextjs
-    const user = await supabase.auth.getUser();
+    const { data: { user } } = await supabase.auth.getUser();
 
-    // protected routes
-    if (request.nextUrl.pathname.startsWith("/protected") && user.error) {
-      return NextResponse.redirect(new URL("/sign-in", request.url));
+    // If no user is logged in
+    if (!user) {
+      // Protect routes that require authentication
+      if (
+        request.nextUrl.pathname.startsWith("/protected") ||
+        request.nextUrl.pathname.startsWith("/dashboard")
+      ) {
+        return NextResponse.redirect(new URL("/sign-in", request.url));
+      }
+      
+      // Allow access to public routes
+      return response;
     }
-
-    if (request.nextUrl.pathname === "/" && !user.error) {
-      return NextResponse.redirect(new URL("/protected", request.url));
+    
+    // User is logged in
+    
+    // If user is trying to access auth pages, redirect appropriately
+    if (request.nextUrl.pathname.startsWith("/(auth-pages)") || 
+        request.nextUrl.pathname.startsWith("/sign-in") || 
+        request.nextUrl.pathname.startsWith("/sign-up") ||
+        request.nextUrl.pathname.startsWith("/role-select")) {
+      
+      // Check if user has a profile
+      const { data: profile } = await supabase
+        .from("users")
+        .select("id")
+        .eq("id", user.id)
+        .single();
+      
+      if (profile) {
+        // User has a profile, redirect to their dashboard
+        const role = user.user_metadata?.role || "student";
+        return NextResponse.redirect(new URL(`/dashboard/${role}`, request.url));
+      } else {
+        // User needs to complete onboarding
+        return NextResponse.redirect(new URL("/protected/onboarding", request.url));
+      }
+    }
+    
+    // If user is accessing dashboard routes, check if they have a profile
+    if (request.nextUrl.pathname.startsWith("/dashboard")) {
+      const { data: profile, error } = await supabase
+        .from("users")
+        .select("id")
+        .eq("id", user.id)
+        .single();
+      
+      if (error || !profile) {
+        // User needs to complete onboarding
+        return NextResponse.redirect(new URL("/protected/onboarding", request.url));
+      }
+      
+      // Check if user is accessing the correct dashboard
+      const role = user.user_metadata?.role || "student";
+      const correctPath = `/dashboard/${role}`;
+      
+      if (!request.nextUrl.pathname.startsWith(correctPath)) {
+        return NextResponse.redirect(new URL(correctPath, request.url));
+      }
+    }
+    
+    // Handle root route
+    if (request.nextUrl.pathname === "/") {
+      // Check if user has a profile
+      const { data: profile } = await supabase
+        .from("users")
+        .select("id")
+        .eq("id", user.id)
+        .single();
+      
+      if (profile) {
+        // User has a profile, redirect to their dashboard
+        const role = user.user_metadata?.role || "student";
+        return NextResponse.redirect(new URL(`/dashboard/${role}`, request.url));
+      } else {
+        // User needs to complete onboarding
+        return NextResponse.redirect(new URL("/protected/onboarding", request.url));
+      }
     }
 
     return response;
   } catch (e) {
     // If you are here, a Supabase client could not be created!
-    // This is likely because you have not set up environment variables.
-    // Check out http://localhost:3000 for Next Steps.
+    console.error("Supabase client error:", e);
     return NextResponse.next({
       request: {
         headers: request.headers,

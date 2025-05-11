@@ -5,15 +5,23 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import Link from "next/link";
 import { LucideGraduationCap } from 'lucide-react';
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { AlertCircle } from "lucide-react";
 
 export default async function StudentSignupPage(props: {
-  searchParams: Promise<Message>;
+  searchParams: Promise<{ error?: string, success?: string }>;
 }) {
   const searchParams = await props.searchParams;
-  if ("message" in searchParams) {
+  const message: Message = searchParams.error 
+    ? { error: searchParams.error } 
+    : searchParams.success 
+    ? { success: searchParams.success } 
+    : { message: "" };
+    
+  if (searchParams.success) {
     return (
       <div className="w-full flex-1 flex items-center h-screen sm:max-w-md justify-center gap-2 p-4">
-        <FormMessage message={searchParams} />
+        <FormMessage message={message} />
       </div>
     );
   }
@@ -26,9 +34,18 @@ export default async function StudentSignupPage(props: {
         </div>
         <h1 className="text-3xl font-bold">Join as a Student</h1>
         <p className="text-center text-muted-foreground mt-2">
-          Connect with your classes, access materials, and collaborate with peers.
+          Sign up to access course materials and collaborate with your peers
         </p>
       </div>
+      
+      {searchParams.error && (
+        <Alert variant="destructive" className="mb-6">
+          <AlertCircle className="h-4 w-4 mr-2" />
+          <AlertDescription>
+            {searchParams.error}
+          </AlertDescription>
+        </Alert>
+      )}
       
       <form className="bg-card border border-border rounded-lg p-8 shadow-sm">
         <div className="space-y-4">
@@ -44,13 +61,8 @@ export default async function StudentSignupPage(props: {
           </div>
           
           <div className="space-y-2">
-            <Label htmlFor="email">Student Email</Label>
-            <Input name="email" id="email" type="email" placeholder="jane.doe@student.edu" required />
-          </div>
-          
-          <div className="space-y-2">
-            <Label htmlFor="studentId">Student ID (Optional)</Label>
-            <Input name="studentId" id="studentId" placeholder="e.g., S12345678" />
+            <Label htmlFor="email">Email Address</Label>
+            <Input name="email" id="email" type="email" placeholder="jane.doe@example.com" required />
           </div>
           
           <div className="space-y-2">
@@ -78,11 +90,9 @@ export default async function StudentSignupPage(props: {
             Create Student Account
           </SubmitButton>
           
-          <FormMessage message={searchParams} />
-          
           <p className="text-sm text-center text-muted-foreground mt-4">
             Already have an account?{" "}
-            <Link className="text-primary font-medium underline" href="/sign-in">
+            <Link className="text-primary font-medium hover:underline" href="/sign-in">
               Sign in
             </Link>
           </p>
