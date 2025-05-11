@@ -1,58 +1,28 @@
 import { signOutAction } from "@/app/actions";
-import { hasEnvVars } from "@/utils/supabase/check-env-vars";
-import Link from "next/link";
-import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
+import Link from "next/link";
 import { createClient } from "@/utils/supabase/server";
 
-export default async function AuthButton() {
+export default async function HeaderAuth() {
   const supabase = await createClient();
 
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!hasEnvVars) {
-    return (
-      <>
-        <div className="flex gap-4 items-center">
-          <div>
-            <Badge
-              variant={"default"}
-              className="font-normal pointer-events-none"
-            >
-              Please update .env.local file with anon key and url
-            </Badge>
-          </div>
-          <div className="flex gap-2">
-            <Button
-              asChild
-              size="sm"
-              variant={"outline"}
-              disabled
-              className="opacity-75 cursor-none pointer-events-none"
-            >
-              <Link href="/sign-in">Sign in</Link>
-            </Button>
-            <Button
-              asChild
-              size="sm"
-              variant={"default"}
-              disabled
-              className="opacity-75 cursor-none pointer-events-none"
-            >
-              <Link href="/sign-up">Sign up</Link>
-            </Button>
-          </div>
-        </div>
-      </>
-    );
-  }
   return user ? (
     <div className="flex items-center gap-4">
-      Hey, {user.email}!
+      <div className="hidden md:flex items-center gap-2 text-sm">
+        <span className="text-muted-foreground">Hello,</span>
+        <span className="font-medium">{user.user_metadata?.full_name || user.email}</span>
+        {user.user_metadata?.role && (
+          <span className="rounded-full bg-primary/10 px-2 py-1 text-xs font-medium text-primary">
+            {user.user_metadata.role === "lecturer" ? "Lecturer" : "Student"}
+          </span>
+        )}
+      </div>
       <form action={signOutAction}>
-        <Button type="submit" variant={"outline"}>
+        <Button type="submit" variant={"outline"} size="sm">
           Sign out
         </Button>
       </form>
@@ -63,7 +33,7 @@ export default async function AuthButton() {
         <Link href="/sign-in">Sign in</Link>
       </Button>
       <Button asChild size="sm" variant={"default"}>
-        <Link href="/sign-up">Sign up</Link>
+        <Link href="/role-select">Sign up</Link>
       </Button>
     </div>
   );

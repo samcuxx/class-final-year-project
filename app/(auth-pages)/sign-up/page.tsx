@@ -1,126 +1,51 @@
-"use client";
-
 import { signUpAction } from "@/app/actions";
-import { FormMessage } from "@/components/form-message";
+import { FormMessage, Message } from "@/components/form-message";
 import { SubmitButton } from "@/components/submit-button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import AuthCard from "@/components/auth-card";
-import RoleSelector from "@/components/role-selector";
 import Link from "next/link";
-import { useState } from "react";
+import { SmtpMessage } from "../smtp-message";
 
-export default function Signup() {
-  const [selectedRole, setSelectedRole] = useState<"student" | "lecturer">("student");
-  
+export default async function Signup(props: {
+  searchParams: Promise<Message>;
+}) {
+  const searchParams = await props.searchParams;
+  if ("message" in searchParams) {
+    return (
+      <div className="w-full flex-1 flex items-center h-screen sm:max-w-md justify-center gap-2 p-4">
+        <FormMessage message={searchParams} />
+      </div>
+    );
+  }
+
   return (
-    <div className="flex-1 flex flex-col items-center justify-center p-4 md:p-8">
-      <AuthCard 
-        title="Create an Account" 
-        subtitle="Join Class to enhance your educational experience"
-      >
-        <form className="w-full space-y-6">
-          <RoleSelector 
-            selectedRole={selectedRole} 
-            onRoleChange={setSelectedRole} 
+    <>
+      <form className="flex flex-col min-w-64 max-w-64 mx-auto">
+        <h1 className="text-2xl font-medium">Sign up</h1>
+        <p className="text-sm text text-foreground">
+          Already have an account?{" "}
+          <Link className="text-primary font-medium underline" href="/sign-in">
+            Sign in
+          </Link>
+        </p>
+        <div className="flex flex-col gap-2 [&>input]:mb-3 mt-8">
+          <Label htmlFor="email">Email</Label>
+          <Input name="email" placeholder="you@example.com" required />
+          <Label htmlFor="password">Password</Label>
+          <Input
+            type="password"
+            name="password"
+            placeholder="Your password"
+            minLength={6}
+            required
           />
-          
-          <div className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="firstName">First Name</Label>
-                <Input 
-                  id="firstName"
-                  name="firstName" 
-                  placeholder="First Name" 
-                  className="rounded-xl"
-                  required 
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="lastName">Last Name</Label>
-                <Input 
-                  id="lastName"
-                  name="lastName" 
-                  placeholder="Last Name" 
-                  className="rounded-xl"
-                  required 
-                />
-              </div>
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input 
-                id="email"
-                name="email" 
-                type="email"
-                placeholder="you@example.com" 
-                className="rounded-xl"
-                required 
-              />
-            </div>
-            
-            {selectedRole === "student" && (
-              <div className="space-y-2">
-                <Label htmlFor="indexNumber">Index Number</Label>
-                <Input 
-                  id="indexNumber"
-                  name="indexNumber" 
-                  placeholder="Your student index number" 
-                  className="rounded-xl"
-                  required 
-                />
-              </div>
-            )}
-            
-            {selectedRole === "lecturer" && (
-              <div className="space-y-2">
-                <Label htmlFor="staffId">Staff ID</Label>
-                <Input 
-                  id="staffId"
-                  name="staffId" 
-                  placeholder="Your staff ID" 
-                  className="rounded-xl"
-                  required 
-                />
-              </div>
-            )}
-            
-            <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                name="password"
-                placeholder="Create a strong password"
-                className="rounded-xl"
-                minLength={6}
-                required
-              />
-            </div>
-          </div>
-          
-          <SubmitButton 
-            formAction={signUpAction} 
-            pendingText="Signing up..."
-            className="w-full rounded-xl"
-          >
-            Create Account
+          <SubmitButton formAction={signUpAction} pendingText="Signing up...">
+            Sign up
           </SubmitButton>
-          
-          <div className="text-center text-sm">
-            Already have an account?{" "}
-            <Link 
-              className="text-primary font-medium hover:underline" 
-              href="/sign-in"
-            >
-              Sign in
-            </Link>
-          </div>
-        </form>
-      </AuthCard>
-    </div>
+          <FormMessage message={searchParams} />
+        </div>
+      </form>
+      <SmtpMessage />
+    </>
   );
 }

@@ -8,14 +8,39 @@ import { redirect } from "next/navigation";
 export const signUpAction = async (formData: FormData) => {
   const email = formData.get("email")?.toString();
   const password = formData.get("password")?.toString();
+  const firstName = formData.get("firstName")?.toString();
+  const lastName = formData.get("lastName")?.toString();
+  const role = formData.get("role")?.toString();
+  const institution = formData.get("institution")?.toString();
+  const studentId = formData.get("studentId")?.toString();
+  
   const supabase = await createClient();
   const origin = (await headers()).get("origin");
+  
+  // Get redirect path based on role
+  const redirectPath = role === "lecturer" ? "/sign-up/lecturer" : "/sign-up/student";
 
   if (!email || !password) {
     return encodedRedirect(
       "error",
-      "/sign-up",
+      redirectPath,
       "Email and password are required",
+    );
+  }
+
+  if (!firstName || !lastName) {
+    return encodedRedirect(
+      "error",
+      redirectPath,
+      "First name and last name are required",
+    );
+  }
+
+  if (!role) {
+    return encodedRedirect(
+      "error",
+      redirectPath,
+      "Role selection is required",
     );
   }
 
@@ -24,16 +49,22 @@ export const signUpAction = async (formData: FormData) => {
     password,
     options: {
       emailRedirectTo: `${origin}/auth/callback`,
+      data: {
+        full_name: `${firstName} ${lastName}`,
+        role: role,
+        institution: institution || null,
+        student_id: studentId || null,
+      },
     },
   });
 
   if (error) {
     console.error(error.code + " " + error.message);
-    return encodedRedirect("error", "/sign-up", error.message);
+    return encodedRedirect("error", redirectPath, error.message);
   } else {
     return encodedRedirect(
       "success",
-      "/sign-up",
+      redirectPath,
       "Thanks for signing up! Please check your email for a verification link.",
     );
   }
