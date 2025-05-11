@@ -28,7 +28,10 @@ export default async function ResetPassword(props: {
         placeholder="Confirm password"
         required
       />
-      <SubmitButton formAction={resetPasswordAction}>
+      <SubmitButton 
+        formAction={resetPasswordAction}
+        pendingText="Updating password..."
+      >
         Reset password
       </SubmitButton>
       <FormMessage message={searchParams} />
